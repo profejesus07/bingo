@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bingo – Llamador de palabras</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1b2430; --muted:#6b7686; --line:#dde3ee;
+    --brand:#1f4e79; --brand2:#2f7fc1; --accent:#f2a900; --ok:#2e9e6a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#10151d; --card:#19212c; --ink:#eef2f8; --muted:#93a0b3; --line:#2a3544; --brand:#7db8ee; --brand2:#4d97d8; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:980px;margin:0 auto;padding:20px 16px 40px}
+  header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  h1{margin:0;font-size:1.3rem;color:var(--brand);letter-spacing:.5px}
+  .counter{color:var(--muted);font-size:.95rem}
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:28px 20px;text-align:center;box-shadow:0 6px 24px rgba(20,40,80,.08)}
+  .cat{display:inline-block;font-size:.8rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 12px;min-height:24px}
+  .en{font-size:clamp(2.6rem,10vw,6rem);font-weight:800;color:var(--brand);line-height:1.1;margin:14px 0 4px;word-break:break-word}
+  .pron{font-size:clamp(1.1rem,3.5vw,1.6rem);color:var(--accent);font-weight:600;min-height:1.6em}
+  .es{font-size:clamp(1.8rem,6vw,3.2rem);font-weight:600;margin-top:14px;min-height:1.2em}
+  .speaking .en{animation:pulse .8s ease-in-out infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.03)}}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:20px 0 6px}
+  button{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:11px 18px;border-radius:12px;cursor:pointer}
+  button:hover{border-color:var(--brand2)}
+  button.primary{background:var(--brand2);border-color:var(--brand2);color:#fff}
+  button.primary.on{background:var(--ok);border-color:var(--ok)}
+  .opts{display:flex;flex-wrap:wrap;gap:18px 26px;justify-content:center;margin-top:16px;font-size:.92rem;color:var(--muted)}
+  .opts label{display:flex;align-items:center;gap:8px}
+  input[type=range]{accent-color:var(--brand2);width:130px}
+  .opts b{color:var(--ink);min-width:2.4em;display:inline-block;text-align:left}
+  h2{font-size:1rem;margin:26px 0 10px;color:var(--muted);font-weight:600}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .col{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  .col h3{margin:0 0 6px;font-size:.78rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .chip{display:block;font-size:.88rem;padding:3px 8px;margin:2px 0;border-radius:8px;color:var(--muted);opacity:.55}
+  .chip.called{background:var(--brand2);color:#fff;opacity:1;font-weight:600}
+  .chip.current{outline:3px solid var(--accent)}
+  .hist{display:flex;flex-wrap:wrap;gap:6px}
+  .hist span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.9rem}
+  .note{color:var(--muted);font-size:.82rem;margin-top:18px;text-align:center}
+  .warn{display:none;background:#fff3cd;color:#664d03;border-radius:10px;padding:8px 12px;margin-top:12px;font-size:.85rem}
+  .done .en{color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎲 BINGO · Word caller</h1>
+    <div class="counter" id="counter">0 / 60</div>
+  </header>
+
+  <section class="stage" id="stage">
+    <span class="cat" id="cat">&nbsp;</span>
+    <div class="en" id="en">Ready?</div>
+    <div class="pron" id="pron">&nbsp;</div>
+    <div class="es" id="es">Pulsa “Siguiente” o “Auto”</div>
+    <div class="warn" id="warn">Tu navegador no tiene voz en inglés disponible. Prueba con Chrome, Edge o Safari.</div>
+
+    <div class="controls">
+      <button class="primary" id="auto">▶ Auto</button>
+      <button id="next">Siguiente ⏭</button>
+      <button id="repeat">🔁 Repetir</button>
+      <button id="reset">♻ Reiniciar</button>
+    </div>
+
+    <div class="opts">
+      <label>Pausa entre palabras <input type="range" id="gap" min="3" max="20" value="8"><b id="gapv">8 s</b></label>
+      <label>Velocidad de voz <input type="range" id="rate" min="0.5" max="1.1" step="0.05" value="0.8"><b id="ratev">0.8×</b></label>
+      <label><input type="checkbox" id="twice" checked> Decir 2 veces</label>
+      <label><input type="checkbox" id="showes" checked> Mostrar español</label>
+      <label><input type="checkbox" id="showpron" checked> Mostrar pronunciación</label>
+    </div>
+  </section>
+
+  <h2>Palabras ya dichas (para verificar al ganador)</h2>
+  <div class="board" id="board"></div>
+
+  <h2>Orden en que salieron</h2>
+  <div class="hist" id="hist"></div>
+
+  <p class="note">Atajos: <b>Espacio</b> = siguiente · <b>R</b> = repetir · <b>A</b> = auto/pausa. La pronunciación escrita es aproximada; el audio usa la voz en inglés de tu navegador.</p>
+</div>
+
+<script>
+// [inglés, español, pronunciación aproximada, texto que se pronuncia]
+const DATA = {
+  "Supplies": [
+    ["Pencil","Lápiz","PEN-sol"],["Notebook","Cuaderno","NOUT-buk"],["Eraser","Borrador","i-REI-ser"],
+    ["Ruler","Regla","RU-ler"],["Backpack","Mochila","BAK-pak"],["Scissors","Tijeras","SI-serz"],
+    ["Book","Libro","buk"],["Crayon","Crayón","KREI-on"],["Glue","Pegamento","glu"],
+    ["Pencil case","Cartuchera / Estuche","PEN-sol keis"]
+  ],
+  "Animals": [
+    ["Dog","Perro","dog"],["Cat","Gato","kat"],["Lion","León","LAI-on"],["Elephant","Elefante","E-le-fant"],
+    ["Bird","Pájaro","berd"],["Fish","Pez","fish"],["Monkey","Mono","MANG-ki"],["Rabbit","Conejo","RA-bit"],
+    ["Horse","Caballo","jors"],["Butterfly","Mariposa","BA-ter-flai"]
+  ],
+  "Family": [
+    ["Mother / Mom","Madre / Mamá","MA-der / mam","Mother, Mom"],
+    ["Father / Dad","Padre / Papá","FA-der / dad","Father, Dad"],
+    ["Brother","Hermano","BRA-der"],["Sister","Hermana","SIS-ter"],
+    ["Grandmother","Abuela","GRAN-ma-der"],["Grandfather","Abuelo","GRAN-fa-der"],
+    ["Uncle","Tío","ANG-kol"],["Aunt","Tía","ant"],["Cousin","Primo / Prima","KA-sen"],["Baby","Bebé","BEI-bi"]
+  ],
+  "Body parts": [
+    ["Head","Cabeza","jed"],["Shoulders","Hombros","SHOUL-derz"],["Knees","Rodillas","niis"],
+    ["Toes","Dedos del pie","tous"],["Eyes","Ojos","ais"],["Ears","Orejas","irz"],
+    ["Mouth","Boca","mauz"],["Nose","Nariz","nous"],["Hands","Manos","jandz"],["Arms","Brazos","armz"]
+  ],
+  "Verbs": [
+    ["Read","Leer","riid"],["Write","Escribir","rait"],["Run","Correr","ran"],["Jump","Saltar","yamp"],
+    ["Eat","Comer","iit"],["Drink","Beber","dringk"],["Sleep","Dormir","sliip"],["Play","Jugar","plei"],
+    ["Listen","Escuchar","LI-sen"],["Sing","Cantar","sing"]
+  ],
+  "Food / Drink": [
+    ["Apple","Manzana","A-pol"],["Banana","Banano","be-NA-na"],["Bread","Pan","bred"],["Milk","Leche","milk"],
+    ["Water","Agua","UO-ter"],["Chicken","Pollo","CHI-ken"],["Cheese","Queso","chiis"],["Rice","Arroz","rais"],
+    ["Juice","Jugo","yuus"],["Egg","Huevo","eg"]
+  ]
+};
+
+const ALL = [];
+for (const [cat, list] of Object.entries(DATA)) {
+  for (const [en, es, pron, say] of list) ALL.push({cat, en, es, pron, say: say || en});
+}
+
+const $ = id => document.getElementById(id);
+let deck = [], called = [], current = null, autoOn = false, timer = null, voice = null, token = 0;
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+// ---------- Voz ----------
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  voice = vs.find(v=>/^en[-_]US/i.test(v.lang) && /google|samantha|microsoft (aria|jenny|guy)/i.test(v.name))
+       || vs.find(v=>/^en[-_]US/i.test(v.lang))
+       || vs.find(v=>/^en/i.test(v.lang)) || null;
+  $('warn').style.display = (vs.length && !voice) ? 'block' : 'none';
+}
+if ('speechSynthesis' in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+} else { $('warn').style.display='block'; }
+
+function speak(text, times, done){
+  if(!('speechSynthesis' in window)){ done&&done(); return; }
+  speechSynthesis.cancel();
+  const my = ++token;
+  let n = 0;
+  const once = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; if(voice) u.voice = voice;
+    u.rate = parseFloat($('rate').value);
+    u.onend = () => {
+      if(my !== token) return;
+      n++;
+      if(n < times) setTimeout(once, 700); else { $('stage').classList.remove('speaking'); done&&done(); }
+    };
+    u.onerror = () => { if(my===token){ $('stage').classList.remove('speaking'); done&&done(); } };
+    $('stage').classList.add('speaking');
+    speechSynthesis.speak(u);
+  };
+  once();
+}
+
+// ---------- Lógica ----------
+function render(){
+  const w = current;
+  $('cat').innerHTML = w ? w.cat : '&nbsp;';
+  $('en').textContent = w ? w.en : (called.length===ALL.length ? 'Bingo! 🎉' : 'Ready?');
+  $('pron').innerHTML = (w && $('showpron').checked) ? '/ ' + w.pron + ' /' : '&nbsp;';
+  $('es').textContent = w ? ($('showes').checked ? w.es : '·  ·  ·') : (called.length===ALL.length ? 'Ya salieron las 60 palabras' : 'Pulsa “Siguiente” o “Auto”');
+  $('counter').textContent = called.length + ' / ' + ALL.length;
+  $('stage').classList.toggle('done', called.length===ALL.length);
+
+  // tablero
+  const b = $('board'); b.innerHTML='';
+  for(const cat of Object.keys(DATA)){
+    const col = document.createElement('div'); col.className='col';
+    col.innerHTML = '<h3>'+cat+'</h3>';
+    for(const item of ALL.filter(x=>x.cat===cat)){
+      const c = document.createElement('span');
+      c.className = 'chip' + (called.includes(item)?' called':'') + (item===current?' current':'');
+      c.textContent = item.en;
+      col.appendChild(c);
+    }
+    b.appendChild(col);
+  }
+  // historial
+  $('hist').innerHTML = called.length
+    ? called.map((x,i)=>'<span>'+(i+1)+'. '+x.en+'</span>').reverse().join('')
+    : '<span style="opacity:.6">Todavía no ha salido ninguna</span>';
+}
+
+function sayCurrent(after){
+  if(!current) return;
+  speak(current.say, $('twice').checked ? 2 : 1, after);
+}
+
+function nextWord(){
+  if(!deck.length){ stopAuto(); current=null; render(); speak('Bingo!',1); return; }
+  current = deck.pop();
+  called.push(current);
+  render();
+  sayCurrent(() => { if(autoOn) schedule(); });
+}
+
+function schedule(){
+  clearTimeout(timer);
+  if(!autoOn) return;
+  timer = setTimeout(nextWord, parseInt($('gap').value,10)*1000);
+}
+
+function startAuto(){
+  autoOn = true; $('auto').textContent='⏸ Pausar'; $('auto').classList.add('on');
+  if(!current || !$('stage').classList.contains('speaking')) {
+    // si ya hay palabra mostrada, espera la pausa; si no, arranca ya
+    current ? schedule() : nextWord();
+  }
+}
+function stopAuto(){
+  autoOn = false; clearTimeout(timer);
+  $('auto').textContent='▶ Auto'; $('auto').classList.remove('on');
+}
+function reset(){
+  stopAuto(); token++; if('speechSynthesis' in window) speechSynthesis.cancel();
+  $('stage').classList.remove('speaking');
+  deck = shuffle(ALL.slice()); called = []; current = null; render();
+}
+
+$('auto').onclick   = () => autoOn ? stopAuto() : startAuto();
+$('next').onclick   = () => { clearTimeout(timer); nextWord(); };
+$('repeat').onclick = () => { if(current){ clearTimeout(timer); sayCurrent(() => { if(autoOn) schedule(); }); } };
+$('reset').onclick  = () => { if(!called.length || confirm('¿Reiniciar y mezclar de nuevo las 60 palabras?')) reset(); };
+$('gap').oninput    = e => $('gapv').textContent = e.target.value + ' s';
+$('rate').oninput   = e => $('ratev').textContent = (+e.target.value).toFixed(2).replace(/0$/,'') + '×';
+$('showes').onchange = $('showpron').onchange = render;
+
+document.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT') return;
+  if(e.code==='Space'){ e.preventDefault(); $('next').click(); }
+  else if(e.key==='r'||e.key==='R') $('repeat').click();
+  else if(e.key==='a'||e.key==='A') $('auto').click();
+});
+
+reset();
+</script>
+</body>
+</html>
